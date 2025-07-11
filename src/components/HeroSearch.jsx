@@ -68,7 +68,7 @@ export default function HeroSearch() {
               value={formData.specialty}
               onChange={handleChange}
               placeholder="Specialty"
-              className="grow placeholder-gray-500 caret-primary bg-transparent focus:outline-none"
+              className="grow placeholder-gray-500 caret-primary bg-transparent focus:outline-none text-gray-800" // Added text-gray-800
             />
           </label>
           {error && (
@@ -107,7 +107,7 @@ export default function HeroSearch() {
               value={formData.location}
               onChange={handleChange}
               placeholder="Location"
-              className="grow placeholder-gray-500 caret-primary bg-transparent focus:outline-none"
+              className="grow placeholder-gray-500 caret-primary bg-transparent focus:outline-none text-gray-800" // Added text-gray-800
             />
           </label>
         </div>

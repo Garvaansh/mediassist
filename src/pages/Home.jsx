@@ -25,7 +25,7 @@ export default function Home() {
         {/* Subtle background pattern */}
         <div className="absolute inset-0 bg-[url('https://img.freepik.com/free-vector/medical-healthcare-blue-color_1017-26807.jpg')] bg-cover opacity-10"></div>
 
-        <div className="relative z-10 flex flex-col lg:flex-row items-center justify-between p-8 sm:p-12 md:p-16 lg:p-20 gap-8">
+        <div className="relative z-10 flex flex-col lg:flex-row items-center justify-between p-8 sm:p-12 md:p-16 lg:p-18 gap-8">
           {/* Left Content */}
           <div className="lg:w-1/2 text-white text-center lg:text-left">
             <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-4 leading-tight">

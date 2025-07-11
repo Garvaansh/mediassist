@@ -1,5 +1,4 @@
-// Search.jsx
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import DoctorCard from "../components/DoctorCard";
 
@@ -8,64 +7,49 @@ const API = import.meta.env.VITE_API_URL;
 export default function Search() {
   const [searchParams] = useSearchParams();
   const [allDoctors, setAllDoctors] = useState([]);
-  const [filteredDoctors, setFilteredDoctors] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState({
-    minRating: 0,
-    acceptingNewPatients: false,
-    telehealthAvailable: false,
-    specialties: [],
-    locations: [],
-  });
+  const [error, setError] = useState(null);
+
+  // Separate filter states for better performance
+  const [minRating, setMinRating] = useState(0);
+  const [acceptingNewPatients, setAcceptingNewPatients] = useState(false);
+  const [telehealthAvailable, setTelehealthAvailable] = useState(false);
 
   const specialty = searchParams.get("specialty")?.toLowerCase() || "";
   const location = searchParams.get("location")?.toLowerCase() || "";
 
+  // Fetch doctors data
   useEffect(() => {
-    setLoading(true);
-    fetch(`${API}/doctors`)
-      .then((res) => res.json())
-      .then((data) => {
+    const fetchDoctors = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch(`${API}/doctors`);
+        const data = await response.json();
         setAllDoctors(data);
-        setFilteredDoctors(data);
-        setLoading(false);
-
-        // Extract unique specialties and locations
-        const uniqueSpecialties = [
-          ...new Set(data.map((doc) => doc.specialty)),
-        ];
-        const uniqueLocations = [...new Set(data.map((doc) => doc.location))];
-
-        setFilters((prev) => ({
-          ...prev,
-          specialties: uniqueSpecialties,
-          locations: uniqueLocations,
-        }));
-      })
-      .catch((err) => {
+      } catch (err) {
         console.error("Error fetching doctors:", err);
+        setError("Failed to load doctors. Please try again later.");
+      } finally {
         setLoading(false);
-      });
+      }
+    };
+
+    fetchDoctors();
   }, []);
 
-  // Apply filters whenever filters state changes
-  useEffect(() => {
-    if (allDoctors.length === 0) return;
-
-    const filtered = allDoctors.filter((doctor) => {
-      // Initial search params
+  // Memoized filtered doctors
+  const filteredDoctors = useMemo(() => {
+    return allDoctors.filter((doctor) => {
       const matchSpecialty =
-        specialty === "" || doctor.specialty.toLowerCase().includes(specialty);
+        !specialty || doctor.specialty.toLowerCase().includes(specialty);
 
       const matchLocation =
-        location === "" || doctor.location.toLowerCase().includes(location);
+        !location || doctor.location.toLowerCase().includes(location);
 
-      // Additional filters
-      const matchRating = doctor.rating >= filters.minRating;
+      const matchRating = doctor.rating >= minRating;
       const matchNewPatients =
-        !filters.acceptingNewPatients || doctor.acceptingNewPatients;
-      const matchTelehealth =
-        !filters.telehealthAvailable || doctor.offersTelehealth;
+        !acceptingNewPatients || doctor.acceptingNewPatients;
+      const matchTelehealth = !telehealthAvailable || doctor.offersTelehealth;
 
       return (
         matchSpecialty &&
@@ -75,78 +59,70 @@ export default function Search() {
         matchTelehealth
       );
     });
+  }, [
+    allDoctors,
+    specialty,
+    location,
+    minRating,
+    acceptingNewPatients,
+    telehealthAvailable,
+  ]);
 
-    setFilteredDoctors(filtered);
-  }, [allDoctors, specialty, location, filters]);
+  const clearFilters = useCallback(() => {
+    setMinRating(0);
+    setAcceptingNewPatients(false);
+    setTelehealthAvailable(false);
+  }, []);
 
-  const handleFilterChange = (filterName, value) => {
-    setFilters((prev) => ({ ...prev, [filterName]: value }));
-  };
-
-  const handleSpecialtyChange = (specialty) => {
-    setFilters((prev) => {
-      const newSpecialties = prev.specialties.includes(specialty)
-        ? prev.specialties.filter((s) => s !== specialty)
-        : [...prev.specialties, specialty];
-
-      return { ...prev, specialties: newSpecialties };
-    });
-  };
-
-  const handleLocationChange = (location) => {
-    setFilters((prev) => {
-      const newLocations = prev.locations.includes(location)
-        ? prev.locations.filter((l) => l !== location)
-        : [...prev.locations, location];
-
-      return { ...prev, locations: newLocations };
-    });
-  };
-
-  const clearFilters = () => {
-    setFilters({
-      minRating: 0,
-      acceptingNewPatients: false,
-      telehealthAvailable: false,
-      specialties: [],
-      locations: filters.locations, // Preserve location options
-    });
-  };
+  // Results count text
+  const resultsText = useMemo(() => {
+    if (loading) return "Loading...";
+    if (filteredDoctors.length === 0) return "No doctors found";
+    return `Found ${filteredDoctors.length} doctor${
+      filteredDoctors.length !== 1 ? "s" : ""
+    }`;
+  }, [loading, filteredDoctors.length]);
 
   return (
-    <div className="p-6 pt-12 max-w-7xl mx-auto">
-      <h1 className="text-3xl font-bold text-primary mb-2 text-center">
-        Find Your Doctor
-      </h1>
-      <p className="text-gray-600 mb-8 text-center">
-        {specialty ? `Specializing in ${specialty}` : "All Specialties"}
-        {location ? ` in ${location}` : ""}
-      </p>
+    <div className="p-4 md:p-6 pt-12 max-w-7xl mx-auto">
+      <div className="text-center mb-10">
+        <h1 className="text-3xl font-bold text-primary mb-2">
+          Find Your Doctor
+        </h1>
+        <p className="text-lg text-gray-600">
+          {specialty ? `Specializing in ${specialty}` : "All Specialties"}
+          {location ? ` in ${location}` : ""}
+        </p>
+      </div>
 
       <div className="flex flex-col lg:flex-row gap-8">
-        {/* Filters Sidebar */}
-        <div className="w-full lg:w-1/4 bg-base-100 p-6 rounded-xl shadow-md h-fit">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-bold">Filters</h2>
+        {/* Filters Sidebar - Enhanced UI */}
+        <div className="w-full lg:w-1/4 bg-base-100 p-6 rounded-xl shadow-md h-fit sticky top-4">
+          <div className="flex justify-between items-center mb-6 pb-3 border-b border-gray-200">
+            <h2 className="text-xl font-bold text-gray-800">Filters</h2>
             <button
               onClick={clearFilters}
-              className="text-sm text-primary hover:underline"
+              className="text-sm text-primary hover:text-primary-focus font-medium transition-colors"
             >
               Clear all
             </button>
           </div>
 
           {/* Rating Filter */}
-          <div className="mb-6">
-            <h3 className="font-semibold mb-3">Minimum Rating</h3>
-            <div className="flex gap-2">
+          <div className="mb-8">
+            <h3 className="font-semibold text-gray-700 mb-4 flex items-center gap-2">
+              <span>⭐</span> Minimum Rating
+            </h3>
+            <div className="flex flex-wrap gap-2">
               {[0, 3, 4, 4.5].map((rating) => (
                 <button
                   key={rating}
-                  className={`btn btn-sm ${
-                    filters.minRating === rating ? "btn-primary" : "btn-ghost"
+                  className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+                    minRating === rating
+                      ? "bg-primary text-white shadow-md"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                   }`}
-                  onClick={() => handleFilterChange("minRating", rating)}
+                  onClick={() => setMinRating(rating)}
                 >
                   {rating === 0 ? "Any" : `${rating}+`}
                 </button>
@@ -156,113 +132,77 @@ export default function Search() {
 
           {/* Availability Filters */}
           <div className="mb-6">
-            <h3 className="font-semibold mb-3">Availability</h3>
-            <div className="space-y-2">
-              <label className="flex items-center gap-2 cursor-pointer">
+            <h3 className="font-semibold text-gray-700 mb-4 flex items-center gap-2">
+              <span>🕒</span> Availability
+            </h3>
+            <div className="space-y-3">
+              <label className="flex items-center gap-3 cursor-pointer p-2 rounded-lg hover:bg-gray-50 transition-colors">
                 <input
                   type="checkbox"
-                  checked={filters.acceptingNewPatients}
-                  onChange={(e) =>
-                    handleFilterChange("acceptingNewPatients", e.target.checked)
-                  }
+                  checked={acceptingNewPatients}
+                  onChange={(e) => setAcceptingNewPatients(e.target.checked)}
                   className="checkbox checkbox-primary checkbox-sm"
                 />
-                <span>Accepting New Patients</span>
+                <span className="text-gray-700">Accepting New Patients</span>
               </label>
-              <label className="flex items-center gap-2 cursor-pointer">
+              <label className="flex items-center gap-3 cursor-pointer p-2 rounded-lg hover:bg-gray-50 transition-colors">
                 <input
                   type="checkbox"
-                  checked={filters.telehealthAvailable}
-                  onChange={(e) =>
-                    handleFilterChange("telehealthAvailable", e.target.checked)
-                  }
+                  checked={telehealthAvailable}
+                  onChange={(e) => setTelehealthAvailable(e.target.checked)}
                   className="checkbox checkbox-primary checkbox-sm"
                 />
-                <span>Telehealth Available</span>
+                <span className="text-gray-700">Telehealth Available</span>
               </label>
-            </div>
-          </div>
-
-          {/* Specialty Filter */}
-          <div className="mb-6">
-            <h3 className="font-semibold mb-3">Specialties</h3>
-            <div className="max-h-48 overflow-y-auto space-y-2">
-              {filters.specialties.map((spec) => (
-                <label
-                  key={spec}
-                  className="flex items-center gap-2 cursor-pointer"
-                >
-                  <input
-                    type="checkbox"
-                    checked={filters.specialties.includes(spec)}
-                    onChange={() => handleSpecialtyChange(spec)}
-                    className="checkbox checkbox-primary checkbox-sm"
-                  />
-                  <span>{spec}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          {/* Location Filter */}
-          <div>
-            <h3 className="font-semibold mb-3">Locations</h3>
-            <div className="max-h-48 overflow-y-auto space-y-2">
-              {filters.locations.map((loc) => (
-                <label
-                  key={loc}
-                  className="flex items-center gap-2 cursor-pointer"
-                >
-                  <input
-                    type="checkbox"
-                    checked={filters.locations.includes(loc)}
-                    onChange={() => handleLocationChange(loc)}
-                    className="checkbox checkbox-primary checkbox-sm"
-                  />
-                  <span>{loc}</span>
-                </label>
-              ))}
             </div>
           </div>
         </div>
 
         {/* Results Section */}
         <div className="w-full lg:w-3/4">
-          <div className="flex justify-between items-center mb-6">
-            <p className="text-gray-600">
-              {loading
-                ? "Loading..."
-                : filteredDoctors.length === 0
-                ? "No doctors found"
-                : `Found ${filteredDoctors.length} doctor${
-                    filteredDoctors.length !== 1 ? "s" : ""
-                  }`}
+          <div className="mb-8 p-4 bg-blue-50 rounded-lg">
+            <p
+              className={`text-center font-medium ${
+                filteredDoctors.length === 0 && !loading
+                  ? "text-amber-600"
+                  : "text-gray-700"
+              }`}
+            >
+              {resultsText}
             </p>
-            <div className="text-sm">
-              <span className="mr-4">Sort by: </span>
-              <select className="select select-bordered select-sm">
-                <option>Rating: High to Low</option>
-                <option>Rating: Low to High</option>
-                <option>Name: A-Z</option>
-                <option>Name: Z-A</option>
-              </select>
-            </div>
           </div>
 
-          {loading ? (
-            <div className="flex justify-center">
+          {error ? (
+            <div className="text-center py-12 bg-red-50 rounded-xl">
+              <div className="text-5xl mb-4">❌</div>
+              <h3 className="text-xl font-medium mb-2">Error Loading Data</h3>
+              <p className="text-gray-600 max-w-md mx-auto">{error}</p>
+              <button
+                className="mt-4 btn btn-primary"
+                onClick={() => window.location.reload()}
+              >
+                Retry
+              </button>
+            </div>
+          ) : loading ? (
+            <div className="flex justify-center py-20">
               <span className="loading loading-spinner loading-lg text-primary"></span>
             </div>
           ) : filteredDoctors.length === 0 ? (
-            <div className="text-center py-12">
-              <div className="text-5xl mb-4">😕</div>
+            <div className="text-center py-12 bg-base-100 rounded-xl">
+              <div className="text-5xl mb-4">🔍</div>
               <h3 className="text-xl font-medium mb-2">
                 No doctors match your search
               </h3>
-              <p className="text-gray-600 max-w-md mx-auto">
-                Try adjusting your filters or search criteria to find what
-                you're looking for.
+              <p className="text-gray-600 max-w-md mx-auto mb-6">
+                Try adjusting your filters or search criteria
               </p>
+              <button
+                className="btn btn-outline btn-primary"
+                onClick={clearFilters}
+              >
+                Clear All Filters
+              </button>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

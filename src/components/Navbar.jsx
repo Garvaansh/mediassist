@@ -9,9 +9,14 @@ export default function Navbar() {
         <div className="navbar-start flex-1 px-4">
           <Link
             to="/"
-            className="btn btn-ghost normal-case  text-xl md:text-3xl text-primary"
+            className="btn btn-ghost normal-case text-xl md:text-3xl text-primary flex items-center gap-2"
           >
-            🩺MediAssist
+            <img
+              src="/stethoscope.png"
+              alt="Logo"
+              className="w-8 h-8 md:w-10 md:h-10"
+            />
+            MediAssist
           </Link>
         </div>
         <div className="navbar-end flex-none">
