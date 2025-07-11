@@ -44,7 +44,8 @@ This project was developed as part of my internship with **Hackveda Ltd**, with 
 ---
 ## 📸 Preview
 
-![Home page](./image.png)
+<img width="1281" height="839" alt="image" src="https://github.com/user-attachments/assets/a04538ea-c3af-494d-aa49-dca498b7c5f3" />
+
 
 ---
 ## 🎯 Objective
